@@ -579,6 +579,12 @@ button{
   font-size:15.5px;line-height:1.85;color:var(--ink-2);
 }
 .sentence em{font-style:normal;color:var(--primary);font-weight:800;border-bottom:2px solid var(--primary-l);}
+/* 例句容器：一或多句 */
+.sent-list{display:flex;flex-direction:column;gap:6px;min-height:0;overflow:hidden;}
+.sent-list:empty::after{
+  content:"暂无例句";display:block;text-align:center;
+  font-size:13px;color:var(--muted);padding:10px 0;
+}
 
 .self-eval{display:flex;gap:10px;margin-top:auto;padding-top:4px;}
 .eval-btn{
@@ -686,6 +692,14 @@ button{
 .field .desc{font-size:11.5px;color:var(--muted);font-weight:500;}
 .field-head{display:flex;align-items:center;gap:10px;}
 .field-head label{flex:1;min-width:0;}
+/* 录入页：例句「再加一句」小按钮 */
+.sent-add{
+  flex:none;border:none;background:none;cursor:pointer;
+  font-size:12px;font-weight:700;color:var(--primary);
+  padding:3px 9px;border-radius:9px;letter-spacing:.3px;
+  -webkit-tap-highlight-color:transparent;
+}
+.sent-add:active{background:var(--primary-l);transform:scale(.96);}
 /* 录入页：输入框与语音报字并排，等宽等高 */
 .entry-card{padding:24px;}
 .entry-form{display:flex;flex-direction:column;gap:16px;}
@@ -928,6 +942,14 @@ textarea::-webkit-input-placeholder{opacity:var(--ph-op,.6);}
 @media (min-width:940px){ .sel-bar{bottom:24px;} }
 .lib-card .lc-words{font-size:11.5px;color:var(--muted);text-align:center;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* 卡片右上角：《新华字典》页码小字（点进详情再看完整标注） */
+.lc-page{
+  position:absolute;top:11px;right:12px;z-index:1;
+  font-size:10px;font-weight:700;color:var(--muted);
+  line-height:1;font-variant-numeric:tabular-nums;
+  pointer-events:none;
+}
+.lib-card.has-page .lc-top{padding-right:26px;}
 .tag-done{
   font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:8px;
   background:var(--primary-l);color:var(--primary);white-space:nowrap;
@@ -1470,6 +1492,7 @@ textarea::-webkit-input-placeholder{opacity:var(--ph-op,.6);}
   .lib-card .lc-char{font-size:clamp(46px, 4vw, 56px);}
   .lib-card .lc-py{font-size:clamp(13px, 1.15vw, 15px);}
   .lib-card .lc-words{font-size:clamp(13px, 1.15vw, 15px);}
+  .lib-card .lc-page{font-size:11px;top:13px;right:14px;}
   .tag-done{font-size:clamp(12px, 1.05vw, 14px);padding:3px 9px;border-radius:9px;}
   .lc-check{width:24px;height:24px;top:9px;left:9px;}
   .lc-check .ic{width:14px;height:14px;}
@@ -1519,53 +1542,86 @@ textarea::-webkit-input-placeholder{opacity:var(--ph-op,.6);}
    —— 田字格尺寸保持不变，只压缩间距与留白
    ============================================================ */
 @media (min-width:700px){
-  /* --- 高度链：整页不滚动，卡片刚好一屏 --- */
-  html,body{height:100%;overflow:hidden;}
-  .app{height:100dvh;min-height:0;overflow:hidden;}
-  .main{height:100dvh;min-height:0;overflow:hidden;}
+  /* --- 高度链：整页不滚动，卡片刚好一屏 ---
+     高度用 JS 写入的 --app-h（真实可视高度），不用 100dvh —— iPad Safari 上
+     dvh 会把工具栏遮住的区域也算进来，导致底部按钮被盖住看不到 */
+  :root{ --pad:min(clamp(200px, 42vh, 400px), calc(var(--app-h, 100vh) * .42));
+         --pad-entry:min(clamp(230px, 47vh, 460px), calc(var(--app-h, 100vh) * .47)); }
+  html,body{height:var(--app-h, 100dvh);overflow:hidden;}
+  .app{height:var(--app-h, 100dvh);min-height:0;overflow:hidden;}
+  .main{height:var(--app-h, 100dvh);min-height:0;overflow:hidden;}
   /* 700–939：底部有标签栏，给 tabbar 留出高度；≥940 有侧栏，底部只需呼吸空间 */
-  .main-inner{height:100%;min-height:0;padding:14px 22px calc(100px + env(safe-area-inset-bottom));overflow:hidden;}
+  .main-inner{height:100%;min-height:0;padding:14px 22px calc(96px + env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior:contain;}
   @media (min-width:940px){ .main-inner{padding:20px 30px 18px;} }
   .view{min-height:0;overflow:hidden;}
   .round-head{margin-bottom:9px;flex-wrap:nowrap;}
+  /* 复习主体（round-head + 舞台 + 底部按钮）必须能收缩，否则内容一高就把
+     「上一个/下一个」顶出屏幕 —— 它的 flex:1 写在行内样式里，这里补 min-height:0 */
+  #reviewStage{min-height:0;overflow:hidden;}
   .stage{min-height:0;}
-  .panes{min-height:0;}
-  .pane{min-height:0;overflow:hidden;}
+  /* panes 必须跟着 stage 一起收缩：行高写死 minmax(0,1fr)，
+     否则 grid 会被内容撑高，把下面「上一个/下一个」挤出屏幕 */
+  .panes{min-height:0;overflow:hidden;grid-template-rows:minmax(0,1fr);}
+  .pane{min-height:0;overflow:hidden;height:100%;}
+  /* 书写面：田字格以「高度」驱动，空间不够时自动缩小（正常全屏时仍是 --pad 原尺寸），
+     保证撤销/清空/提示三个按钮永远在卡内 */
+  .pane-write .tian-wrap{flex:1;min-height:0;}
+  .pane-write .tian{height:min(var(--pad), 100%);width:auto;max-width:100%;}
   .review-foot{margin-top:9px;flex:none;}
   .foot-tip{margin-top:5px;flex:none;}
 
   /* --- 答案卡：内容压进一屏（田字格大小不变） --- */
   .pane-answer{padding:15px 22px;gap:0;}
   .answer-body{gap:9px;min-height:0;overflow:hidden;}
-  .answer-top{padding-bottom:8px;}
-  .answer-grid{gap:7px;min-height:0;flex:1;align-content:safe center;}
-  .stroke-col{gap:6px;}
+  .answer-top{padding-bottom:8px;flex:none;}
+  /* 三行：田字格区 / 组词 / 例句。例句行 minmax(0,1fr) 可收缩，
+     空间不够时先裁例句尾部，底部「再练一次 / 写对了」永远不被挤掉 */
+  .answer-grid{
+    display:grid;grid-template-columns:1fr;
+    grid-template-rows:auto auto minmax(0,1fr);
+    gap:7px;min-height:0;flex:1;overflow:hidden;
+  }
+  .stroke-col{gap:6px;flex:none;}
   .dict-ref-ans{margin-top:0;}
   .stroke-btns{gap:10px;}
   .stroke-btns .mini{min-height:46px;padding:0 20px;}
-  .info-col{gap:5px;}
-  .sent-col{gap:5px;min-height:0;}
+  .info-col{gap:5px;flex:none;}
+  .sent-col{gap:5px;min-height:0;overflow:hidden;}
   .word-list{gap:8px;}
   .word-pill{padding:5px 11px;gap:1px;border-radius:11px;}
-  .sentence{padding:10px 13px;line-height:1.7;overflow:hidden;}
+  .sentence{padding:10px 13px;line-height:1.7;overflow:hidden;
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;}
   .self-eval{padding-top:0;margin-top:0;flex:none;}
   .eval-btn{min-height:52px;}
 
-  /* --- 录入卡：固定一屏，田字格放大到与复习页书写面一致 --- */
-  #view-entry{justify-content:center;}
-  .entry-card{padding:24px 28px;flex:none;max-height:100%;overflow:hidden;}
-  .entry-grid{
-    grid-template-columns:min(var(--pad), 52%) minmax(0,1fr);
-    gap:clamp(18px, 2.4vw, 36px);
-    align-items:center;
+  /* --- 录入卡：吃满整屏不留空白；田字格放大（--pad-entry），
+         按钮 / 候选字缩小，省出的高度都留给田字格 --- */
+  #view-entry{justify-content:stretch;}
+  .entry-card{
+    padding:20px 26px;flex:1;min-height:0;max-height:100%;overflow:hidden;
+    display:flex;flex-direction:column;
   }
-  .entry-preview{gap:11px;min-width:0;}
+  .entry-grid{
+    flex:1;min-height:0;
+    grid-template-columns:min(var(--pad-entry), 55%) minmax(0,1fr);
+    gap:clamp(16px, 2.2vw, 32px);
+    align-items:stretch;
+  }
+  .entry-preview{gap:10px;min-width:0;justify-content:center;}
   .entry-preview .tian-wrap{width:100%;}
-  .entry-form{gap:15px;min-width:0;}
-  .field{gap:6px;}
-  .entry-save{min-height:56px;margin-top:2px;}
-  .cands{min-height:50px;margin-top:4px;}
-  .cand-chip{height:56px;min-width:60px;font-size:30px;}
+  .entry-preview .tian{width:min(var(--pad-entry),100%);}
+  .entry-form{gap:12px;min-width:0;justify-content:space-evenly;}
+  .field{gap:5px;}
+  #view-entry .textarea{min-height:70px;}
+  #view-entry .entry-form .input{min-height:46px;font-size:16px;padding:0 14px;}
+  #view-entry .char-row .voice-btn{min-height:46px;font-size:15px;}
+  #view-entry .entry-save{min-height:48px;margin-top:2px;font-size:16px;}
+  /* 按钮 / 候选字缩小 */
+  #view-entry .mini{min-height:37px;padding:0 14px;border-radius:11px;font-size:13.5px;gap:6px;}
+  #view-entry .mini .ic{width:15px;height:15px;}
+  #view-entry .cands{min-height:42px;gap:8px;margin-top:2px;}
+  #view-entry .cand-chip{height:44px;min-width:50px;font-size:24px;border-radius:12px;}
+  #view-entry .cand-chip.none{font-size:13px;}
 }
 </style>
 </head>
@@ -1790,7 +1846,7 @@ textarea::-webkit-input-placeholder{opacity:var(--ph-op,.6);}
 
                     <div class="sent-col">
                       <div class="info-label">例句</div>
-                      <div class="sentence" id="ansSentence"></div>
+                      <div class="sent-list" id="ansSentence"></div>
                     </div>
                   </div>
 
@@ -1880,9 +1936,16 @@ textarea::-webkit-input-placeholder{opacity:var(--ph-op,.6);}
               </div>
 
               <div class="field">
-                <label for="entrySentence">记忆例句</label>
+                <div class="field-head">
+                  <label for="entrySentence">记忆例句 <span class="desc">（最多 3 句）</span></label>
+                  <button class="sent-add hidden" id="btnAddSentence" type="button">＋ 再加一句</button>
+                </div>
                 <textarea id="entrySentence" class="textarea" rows="1"
                           placeholder="定字后自动获取，也可自己写一句"></textarea>
+                <textarea id="entrySentence2" class="textarea" rows="1"
+                          placeholder="第二句（可选 · 建议多记一两句）"></textarea>
+                <textarea id="entrySentence3" class="textarea" rows="1" hidden
+                          placeholder="第三句（可选）"></textarea>
               </div>
 
               <button class="btn btn-primary entry-save" id="btnSaveEntry">
@@ -2104,16 +2167,19 @@ textarea::-webkit-input-placeholder{opacity:var(--ph-op,.6);}
       </div>
     </div>
 
-    <div style="display:flex;justify-content:center;margin-bottom:16px">
+    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:16px">
       <div class="tian tian-sm" id="dTian">
         <div class="stroke-anim" id="dAnim"></div>
+      </div>
+      <div class="dict-ref" id="dictRefDetail" hidden style="margin-top:8px">
+        <span id="dictRefDetailText"></span>
       </div>
     </div>
 
     <div class="info-label" style="margin-bottom:7px">组词</div>
     <div class="word-list" id="dWords" style="margin-bottom:14px"></div>
     <div class="info-label" style="margin-bottom:7px">例句</div>
-    <div class="sentence" id="dSentence"></div>
+    <div class="sent-list" id="dSentence"></div>
 
     <div class="modal-foot">
       <button class="btn btn-danger btn-sm" id="dDelete">删除</button>
@@ -7867,6 +7933,7 @@ function seedWords(){
     const c = pair[0], n = pair[1], d = DICT[c];
     return {
       char:c, pinyin:d.py, words:d.words.slice(), sentence:d.sentence,
+      sentences:d.sentence ? [d.sentence] : [],
       count:n, mastered:n>=3, createdAt:Date.now()
     };
   });
@@ -7883,12 +7950,22 @@ function normalizeWord(w){
     : String(w.words || '').split(/[,，、\s\/]+/).map(s => s.trim()).filter(Boolean);
   const count = clamp(parseInt(w.count, 10) || 0, 0, 3);
   const fb = DICT[c] || LEX[c] || null;
+  // 例句：最多 3 句。兼容旧数据（只有 sentence 字符串）
+  let sentences = Array.isArray(w.sentences)
+    ? w.sentences.map(s => String(s || '').trim()).filter(Boolean)
+    : [];
+  if(!sentences.length){
+    const s0 = String(w.sentence || (fb ? (fb.sentence || '') : '')).trim();
+    if(s0) sentences = [s0];
+  }
+  sentences = sentences.slice(0, 3);
   return {
     char: c,
     pinyin: String(w.pinyin || (DICT[c] ? DICT[c].py : '') || ''),
     // 用户明确存过空组词（生僻字）时保留为空，不用词表兜底
     words: words.length ? words : (hasArr ? [] : (fb ? fb.words.slice() : [c])),
-    sentence: String(w.sentence || (fb ? (fb.sentence || '') : '')),
+    sentence: sentences[0] || String(w.sentence || (fb ? (fb.sentence || '') : '')),
+    sentences: sentences,
     count: count,
     mastered: Boolean(w.mastered) || count >= 3,
     createdAt: w.createdAt || Date.now()
@@ -8107,6 +8184,7 @@ const TRAD_STOP = /[什麼這個們說練錯鋼車馬來時會發現實點線聲
 
 function pickSentence(ch, payload){
   const arr = (payload && payload.data) || [];
+  const out = [], seen = {};
   for(let i = 0; i < arr.length; i++){
     const it = arr[i] || {};
     const t = String(it.text || '').trim();
@@ -8116,9 +8194,12 @@ function pickSentence(ch, payload){
     if(t.length < 6 || t.length > 26) continue;
     if(t.indexOf(ch) === -1) continue;
     if(TRAD_STOP.test(t)) continue;
-    return t;
+    if(seen[t]) continue;
+    seen[t] = 1;
+    out.push(t);
+    if(out.length >= 3) break;
   }
-  return '';
+  return out;
 }
 
 function fetchSentenceFor(ch, words){
@@ -8127,13 +8208,16 @@ function fetchSentenceFor(ch, words){
   if(words && words[1] && words[1] !== words[0]) queries.push(words[1]);
   queries.push(ch);
 
+  const got = {}, out = [];
   const next = function(idx){
-    if(idx >= queries.length) return Promise.resolve('');
+    if(idx >= queries.length || out.length >= 3) return Promise.resolve(out);
     const url = 'https://api.tatoeba.org/unstable/sentences?lang=cmn&sort=relevance&limit=25&q=' +
       encodeURIComponent(queries[idx]);
     return fetchJson(url, 4500).then(function(j){
-      const s = pickSentence(ch, j);
-      return s || next(idx + 1);
+      (pickSentence(ch, j) || []).forEach(function(s){
+        if(!got[s]){ got[s] = 1; out.push(s); }
+      });
+      return next(idx + 1);
     }).catch(function(){ return next(idx + 1); });
   };
   return next(0);
@@ -8174,13 +8258,13 @@ function enrichEntry(ch, autoWords, autoSentence, seq){
   setEntryNet(needSentence ? '正在联网获取例句…' : '正在联网补全组词…', false);
 
   const wordsTask = needWords ? fetchRemoteWords(ch) : Promise.resolve([]);
-  const sentTask = needSentence ? fetchSentenceFor(ch, autoWords) : Promise.resolve('');
+  const sentTask = needSentence ? fetchSentenceFor(ch, autoWords) : Promise.resolve([]);
 
   Promise.all([wordsTask, sentTask]).then(function(r){
     if(seq !== entryFetchSeq || S.entryChar !== ch) return;
 
     const remoteWords = r[0] || [];
-    const sentence = r[1] || '';
+    const remoteSents = r[1] || [];
     const merged = mergeWords(autoWords, remoteWords);
     let changed = false;
 
@@ -8191,17 +8275,23 @@ function enrichEntry(ch, autoWords, autoSentence, seq){
         changed = true;
       }
     }
-    if(needSentence && sentence && !($('entrySentence').value || '').trim()){
-      $('entrySentence').value = sentence;
-      changed = true;
+    // 例句：依次填进空着的输入框（最多 3 句），不动用户已写的内容
+    if(needSentence && remoteSents.length){
+      const boxes = [$('entrySentence'), $('entrySentence2'), $('entrySentence3')];
+      let si = 0;
+      boxes.forEach(function(b){
+        if(si >= remoteSents.length) return;
+        if(!(b.value || '').trim()){ b.value = remoteSents[si++]; changed = true; }
+      });
+      syncSentInputs();
     }
 
-    if(merged.length || sentence) setLexCache(ch, merged, sentence);
+    if(merged.length || remoteSents.length) setLexCache(ch, merged, remoteSents[0] || '');
 
     if(changed){
       setEntryNet('已联网补全，可自行修改', true);
       onWordsInput();
-    }else if(!remoteWords.length && !sentence){
+    }else if(!remoteWords.length && !remoteSents.length){
       setEntryNet('联网暂时取不到，可直接保存，组词以后再补', true);
     }else{
       setEntryNet('');
@@ -9073,8 +9163,7 @@ function renderCard(){
     return '<div class="word-pill"><small>' + (py || '&nbsp;') + '</small><span>' + html + '</span></div>';
   }).join('') : '<div class="word-empty">组词待补充 · 可在字库里编辑</div>';
 
-  $('ansSentence').innerHTML = (item.sentence || '')
-    .split(item.char).join('<em>' + item.char + '</em>');
+  renderSentences($('ansSentence'), item);
 
   $('strokeAnim').innerHTML = '';
   $('strokeTian').classList.remove('loading');
@@ -9089,6 +9178,20 @@ function renderCard(){
   prepareWriting(item.char);
 
   updateFoot();
+}
+
+/* 条目的全部例句（最多 3 句），兼容旧数据（只有 sentence 一个字段） */
+function sentencesOf(item){
+  let s = (item && Array.isArray(item.sentences)) ? item.sentences.map(function(x){ return String(x || '').trim(); }).filter(Boolean) : [];
+  if(!s.length && item && item.sentence) s = [String(item.sentence)];
+  return s.slice(0, 3);
+}
+
+function renderSentences(el, item){
+  if(!el) return;
+  el.innerHTML = sentencesOf(item).map(function(s){
+    return '<div class="sentence">' + s.split(item.char).join('<em>' + item.char + '</em>') + '</div>';
+  }).join('');
 }
 
 /* 《新华字典》第12版页码参考（正文按音序排列，按音序位次换算，供翻查定位用）
@@ -9983,11 +10086,18 @@ function onCharInput(){
 
   $('entryWords').value = words.join('，');
   $('entrySentence').value = sentence;
+  // 第二、三句：本地数据有多句时一起带出，否则留空待联网补
+  const more = (d && d.sentences) || (lex && lex.sentences) || (cache && cache.sentences) || [];
+  $('entrySentence2').value = more[1] || '';
+  $('entrySentence3').value = more[2] || '';
+  syncSentInputs();
 
   renderEntry(ch, 1, true);
 
-  // 2) 不足 3 个组词 / 没有例句时，后台联网补
-  enrichEntry(ch, words, sentence ? sentence.trim() : '', seq);
+  // 2) 不足 3 个组词 / 例句不满 3 句时，后台联网补
+  const haveSent = [$('entrySentence'), $('entrySentence2'), $('entrySentence3')]
+    .map(function(t){ return (t.value || '').trim(); }).filter(Boolean).length;
+  enrichEntry(ch, words, haveSent >= 3 ? 'full' : '', seq);
 }
 
 function onWordsInput(){
@@ -9996,6 +10106,27 @@ function onWordsInput(){
   const words = ($('entryWords').value || '').split(/[,，、\s\/]+/).map(function(s){ return s.trim(); }).filter(Boolean);
   const py = pyOf(m[0], words);
   if(py) $('entryPreviewPy').textContent = py;
+}
+
+/* 例句输入框联动：第二句常驻（鼓励记 2~3 句），第三句有内容 / 用户点过「再加一句」才展开 */
+function syncSentInputs(){
+  const b2 = $('entrySentence2'), b3 = $('entrySentence3'), add = $('btnAddSentence');
+  if(!b2 || !b3 || !add) return;
+  const has = function(t){ return !!(t.value || '').trim(); };
+  b2.hidden = false;
+  b3.hidden = !(has(b3) || b3.dataset.open === '1');
+  add.classList.toggle('hidden', !b3.hidden);
+}
+
+function clearEntrySentences(){
+  ['entrySentence', 'entrySentence2', 'entrySentence3'].forEach(function(id){
+    const t = $(id);
+    if(t) t.value = '';
+  });
+  const b3 = $('entrySentence3');
+  if(b3){ b3.hidden = true; delete b3.dataset.open; }
+  const add = $('btnAddSentence');
+  if(add) add.classList.remove('hidden');
 }
 
 function saveEntry(){
@@ -10007,20 +10138,24 @@ function saveEntry(){
   const words = ($('entryWords').value || '').split(/[,，、\s\/]+/).map(function(s){ return s.trim(); }).filter(Boolean);
 
   const pinyin = pyOf(ch, words) || '';
-  const sentence = ($('entrySentence').value || '').trim() || ('认真记住「' + ch + '」字的写法。');
+  // 例句最多 3 句，第一句为空时用默认句兜底
+  const sentences = [$('entrySentence'), $('entrySentence2'), $('entrySentence3')]
+    .map(function(t){ return (t.value || '').trim(); }).filter(Boolean).slice(0, 3);
+  const sentence = sentences[0] || ('认真记住「' + ch + '」字的写法。');
+  if(!sentences.length) sentences.push(sentence);
 
   let idx = -1;
   for(let i = 0; i < S.words.length; i++){ if(S.words[i].char === ch){ idx = i; break; } }
 
   if(idx !== -1){
     S.words[idx] = {
-      char:ch, pinyin:pinyin, words:words, sentence:sentence,
+      char:ch, pinyin:pinyin, words:words, sentence:sentence, sentences:sentences,
       count:0, mastered:false, createdAt:S.words[idx].createdAt || Date.now()
     };
     toast('已更新「' + ch + '」，复习进度已重置');
   }else{
     S.words.unshift({
-      char:ch, pinyin:pinyin, words:words, sentence:sentence,
+      char:ch, pinyin:pinyin, words:words, sentence:sentence, sentences:sentences,
       count:0, mastered:false, createdAt:Date.now()
     });
     toast(words.length ? '「' + ch + '」已加入错字本' : '「' + ch + '」已加入，组词可稍后在字库里补充');
@@ -10031,7 +10166,7 @@ function saveEntry(){
   // 清空表单，回到手写默认态，方便连续录入
   $('entryChar').value = '';
   $('entryWords').value = '';
-  $('entrySentence').value = '';
+  clearEntrySentences();
   $('entryNet').textContent = '';
   S.entryChar = '';
   resetEntryInput();
@@ -10684,13 +10819,15 @@ function renderLib(){
       ? '<span class="tag-done">已掌握</span>'
       : '<span class="dots">' + dotsHTML(w.count) + '</span>';
     const on = S.selMode && S.sel.has(w.char);
-    return '<button class="lib-card' + (on ? ' sel' : '') + '" data-detail="' + w.char + '">' +
+    const page = dictPageOf(w.char);
+    return '<button class="lib-card' + (on ? ' sel' : '') + (page ? ' has-page' : '') + '" data-detail="' + w.char + '">' +
       (S.selMode
         ? '<span class="lc-check"><svg class="ic"><use href="#i-check"/></svg></span>'
         : '') +
       '<div class="lc-top"><span class="lc-py">' + (w.pinyin || '') + '</span>' + status + '</div>' +
       '<div class="lc-char">' + w.char + '</div>' +
       '<div class="lc-words">' + w.words.slice(0, 3).join(' · ') + '</div>' +
+      (page ? '<span class="lc-page">' + page + '</span>' : '') +
     '</button>';
   }).join('');
 
@@ -10778,12 +10915,26 @@ function openDetail(char){
   $('dPy').textContent = item.pinyin || pyOf(item.char, item.words);
   $('dDots').innerHTML = dotsHTML(item.count);
 
+  // 田字格下方：《新华字典》页码（常规标注）
+  const dPage = dictPageOf(item.char);
+  const dRef = $('dictRefDetail'), dRefTx = $('dictRefDetailText');
+  if(dRef && dRefTx){
+    if(dPage){
+      dRefTx.innerHTML = '《新华字典》第12版 · 第 <b>' + dPage + '</b> 页';
+      dRef.hidden = false;
+      dRef.title = '与纸质书正文页码一致（多音字取主读音所在页）';
+    }else{
+      dRefTx.textContent = '';
+      dRef.hidden = true;
+    }
+  }
+
   $('dWords').innerHTML = item.words.length ? item.words.map(function(w){
     return '<div class="word-pill"><small>' + (pyOf(w) || '&nbsp;') + '</small><span>' +
       w.split(item.char).join('<em>' + item.char + '</em>') + '</span></div>';
   }).join('') : '<div class="word-empty">组词待补充（联网没找到，可手动录入）</div>';
 
-  $('dSentence').innerHTML = (item.sentence || '').split(item.char).join('<em>' + item.char + '</em>');
+  renderSentences($('dSentence'), item);
 
   $('dToggle').textContent = item.mastered ? '移回待复习' : '标为已掌握';
 
@@ -10872,7 +11023,8 @@ function backupFileName(){
 
 function buildBackupBlob(){
   const data = S.words.map(function(w){
-    return { char:w.char, pinyin:w.pinyin, words:w.words, sentence:w.sentence, count:w.count, mastered:w.mastered };
+    return { char:w.char, pinyin:w.pinyin, words:w.words, sentence:w.sentence,
+             sentences:sentencesOf(w), count:w.count, mastered:w.mastered };
   });
   return new Blob([JSON.stringify(data)], { type:'application/json' });
 }
@@ -11007,7 +11159,8 @@ function cloudPayload(){
     words: S.words.map(function(w){
       return {
         char:w.char, pinyin:w.pinyin || '', words:w.words || [],
-        sentence:w.sentence || '', count:w.count || 0,
+        sentence:w.sentence || '', sentences:sentencesOf(w),
+        count:w.count || 0,
         mastered:!!w.mastered, createdAt:w.createdAt || 0
       };
     })
@@ -11692,6 +11845,14 @@ function bind(){
   // 录入
   $('entryChar').addEventListener('input', onCharInput);
   $('entryWords').addEventListener('input', onWordsInput);
+  $('entrySentence').addEventListener('input', syncSentInputs);
+  $('entrySentence2').addEventListener('input', syncSentInputs);
+  $('entrySentence3').addEventListener('input', syncSentInputs);
+  $('btnAddSentence').addEventListener('click', function(){
+    const b3 = $('entrySentence3');
+    if(b3.hidden){ b3.dataset.open = '1'; b3.hidden = false; b3.focus(); }
+    syncSentInputs();
+  });
   $('btnSaveEntry').addEventListener('click', saveEntry);
   $('btnEntryPlay').addEventListener('click', function(){
     const m = ($('entryChar').value || '').match(/[\u4e00-\u9fa5]/);
@@ -11711,7 +11872,7 @@ function bind(){
   $('btnEntryRewrite').addEventListener('click', function(){
     $('entryChar').value = '';
     $('entryWords').value = '';
-    $('entrySentence').value = '';
+    clearEntrySentences();
     $('entryNet').textContent = '';
     S.entryChar = '';
     resetEntryInput();
@@ -12014,7 +12175,25 @@ function injectGrids(){
   });
 }
 
+/* iPad Safari 的 100dvh 会把被地址栏 / 工具栏遮住的部分也算进去，
+   页面一旦禁止滚动，底部（上一个/下一个）就被永久盖住。
+   这里取「真实可视高度」写进 --app-h，CSS 用它当整页高度。 */
+function syncAppHeight(){
+  const vv = window.visualViewport;
+  let h = Math.round(window.innerHeight || 0);
+  if(vv && vv.height){
+    const vh = Math.round(vv.height);
+    /* 软键盘弹出时可视区会明显变矮，此时仍用 innerHeight，避免卡片被压扁 */
+    if(!h || vh > h * 0.85) h = vh;
+  }
+  if(h > 0) document.documentElement.style.setProperty('--app-h', h + 'px');
+}
+
 function boot(){
+  syncAppHeight();
+  window.addEventListener('resize', syncAppHeight);
+  window.addEventListener('orientationchange', function(){ setTimeout(syncAppHeight, 260); });
+  if(window.visualViewport) window.visualViewport.addEventListener('resize', syncAppHeight);
   injectGrids();
   initLex();
   loadLexCache();
