@@ -895,8 +895,13 @@ textarea::-webkit-input-placeholder{opacity:var(--ph-op,.6);}
 }
 .lib-card:active{transform:scale(.97);}
 @media (hover:hover){ .lib-card:hover{border-color:var(--primary);} }
-.lib-card .lc-top{display:flex;align-items:center;justify-content:space-between;gap:6px;}
-.lib-card .lc-py{font-size:12px;font-weight:700;color:var(--primary);font-family:"Iowan Old Style",Georgia,serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* 拼音居中在汉字上方（放大一点），汉字居中 */
+.lib-card .lc-py{
+  font-size:14px;font-weight:700;color:var(--primary);
+  font-family:"Iowan Old Style",Georgia,serif;
+  text-align:center;line-height:1.25;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
 .lib-card .lc-char{
   font-family:var(--font-cn);font-size:40px;font-weight:700;line-height:1;
   text-align:center;color:var(--ink);padding:4px 0;
@@ -914,8 +919,7 @@ textarea::-webkit-input-placeholder{opacity:var(--ph-op,.6);}
 .lib-card.sel .lc-check{background:var(--primary);border-color:var(--primary);}
 .lib-card.sel .lc-check .ic{opacity:1;}
 .lib-card.sel:active{transform:scale(.97);}
-/* 多选时给勾选圈让位：拼音右移，网格底部留出悬浮操作栏的空间 */
-.view.selecting .lib-card .lc-top{padding-left:25px;}
+/* 多选时给勾选圈让位；网格底部留出悬浮操作栏的空间 */
 .view.selecting .lib-grid{padding-bottom:122px;}
 
 .sel-bar{
@@ -949,7 +953,16 @@ textarea::-webkit-input-placeholder{opacity:var(--ph-op,.6);}
   line-height:1;font-variant-numeric:tabular-nums;
   pointer-events:none;
 }
-.lib-card.has-page .lc-top{padding-right:26px;}
+/* 掌握度三个点：竖排，落在页码正下方 */
+.lc-side{
+  position:absolute;top:26px;right:13px;z-index:1;
+  display:flex;justify-content:center;pointer-events:none;
+}
+.lc-dots-v{display:flex;flex-direction:column;gap:4px;}
+.lc-dots-v i{width:6px;height:6px;}
+/* 已掌握：左上角小标签（多选时让位给勾选圈） */
+.lc-tag{position:absolute;top:9px;left:11px;z-index:1;pointer-events:none;}
+.view.selecting .lib-card .lc-tag{display:none;}
 .tag-done{
   font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:8px;
   background:var(--primary-l);color:var(--primary);white-space:nowrap;
@@ -1388,6 +1401,7 @@ textarea::-webkit-input-placeholder{opacity:var(--ph-op,.6);}
   #btnImport{min-height:34px;padding:0 10px;font-size:12px;}
   .lib-grid{gap:9px;margin-top:9px !important;flex:1 1 auto;min-height:0;overflow-y:auto;align-content:start;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
   .lib-card{padding:10px;gap:5px;border-radius:14px;}
+  .lib-card .lc-py{font-size:12.5px;}
   .lib-card .lc-char{padding:2px 0;}
   .lib-card .lc-words{font-size:11px;}
 }
@@ -1488,15 +1502,17 @@ textarea::-webkit-input-placeholder{opacity:var(--ph-op,.6);}
   .seg button{min-height:44px;padding:0 17px;font-size:clamp(14.5px, 1.3vw, 16.5px);}
   .search input{min-height:46px;font-size:clamp(15px, 1.3vw, 17px);}
   .lib-grid{grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:16px;}
-  .lib-card{padding:14px 12px;gap:7px;}
+  .lib-card{padding:14px 12px;gap:6px;}
   .lib-card .lc-char{font-size:clamp(46px, 4vw, 56px);}
-  .lib-card .lc-py{font-size:clamp(13px, 1.15vw, 15px);}
+  .lib-card .lc-py{font-size:clamp(16px, 1.35vw, 19px);}
   .lib-card .lc-words{font-size:clamp(13px, 1.15vw, 15px);}
   .lib-card .lc-page{font-size:11px;top:13px;right:14px;}
+  .lc-side{top:31px;right:15px;}
+  .lc-dots-v i{width:7px;height:7px;}
+  .lc-tag{top:11px;left:13px;}
   .tag-done{font-size:clamp(12px, 1.05vw, 14px);padding:3px 9px;border-radius:9px;}
   .lc-check{width:24px;height:24px;top:9px;left:9px;}
   .lc-check .ic{width:14px;height:14px;}
-  .view.selecting .lib-card .lc-top{padding-left:30px;}
   .sel-bar{width:min(640px, calc(100vw - 32px));padding:12px 14px;gap:9px;border-radius:18px;}
   .sel-bar .sel-count{font-size:clamp(14px, 1.2vw, 16px);}
   .sel-bar .btn{min-height:44px;font-size:clamp(14px, 1.2vw, 16px);}
@@ -1622,6 +1638,23 @@ textarea::-webkit-input-placeholder{opacity:var(--ph-op,.6);}
   #view-entry .cands{min-height:42px;gap:8px;margin-top:2px;}
   #view-entry .cand-chip{height:44px;min-width:50px;font-size:24px;border-radius:12px;}
   #view-entry .cand-chip.none{font-size:13px;}
+
+  /* --- 字库页：字多了必须能上下滑 ---
+     页面本身仍锁一屏，但搜索栏固定、下面的字卡列表单独滚动，
+     否则卡片会被 .view 的 overflow:hidden 裁掉，后面的字永远看不到 */
+  #view-library{min-height:0;overflow:hidden;}
+  #view-library .lib-bar{flex:none;}
+  #view-library .lib-grid{
+    margin-top:10px !important;
+    flex:1;min-height:0;
+    overflow-y:auto;overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    align-content:start;
+    padding-bottom:6px;
+    scrollbar-width:thin;
+  }
+  #view-library .lib-grid::-webkit-scrollbar{width:6px;}
+  #view-library .lib-grid::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:3px;}
 }
 </style>
 </head>
@@ -10815,19 +10848,21 @@ function renderLib(){
   }
 
   grid.innerHTML = list.map(function(w){
-    const status = w.mastered
-      ? '<span class="tag-done">已掌握</span>'
-      : '<span class="dots">' + dotsHTML(w.count) + '</span>';
     const on = S.selMode && S.sel.has(w.char);
     const page = dictPageOf(w.char);
+    // 掌握度三个点竖排，挂在页码正下方；已掌握则左上角小标签
+    const status = w.mastered
+      ? '<span class="tag-done lc-tag">已掌握</span>'
+      : '<span class="lc-side"><span class="dots lc-dots-v">' + dotsHTML(w.count) + '</span></span>';
     return '<button class="lib-card' + (on ? ' sel' : '') + (page ? ' has-page' : '') + '" data-detail="' + w.char + '">' +
       (S.selMode
         ? '<span class="lc-check"><svg class="ic"><use href="#i-check"/></svg></span>'
         : '') +
-      '<div class="lc-top"><span class="lc-py">' + (w.pinyin || '') + '</span>' + status + '</div>' +
+      (page ? '<span class="lc-page">' + page + '</span>' : '') +
+      status +
+      '<div class="lc-py">' + (w.pinyin || '') + '</div>' +
       '<div class="lc-char">' + w.char + '</div>' +
       '<div class="lc-words">' + w.words.slice(0, 3).join(' · ') + '</div>' +
-      (page ? '<span class="lc-page">' + page + '</span>' : '') +
     '</button>';
   }).join('');
 
