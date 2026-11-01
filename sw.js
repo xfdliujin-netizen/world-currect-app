@@ -1,7 +1,13 @@
 /* 刘诣辰的专属错字本 —— 离线缓存 Service Worker
    策略：页面走「先网络、断网用缓存」；脚本/字数据/图标走「缓存优先」。
-   改动 App 后只需把 VER 数字加一，旧缓存会自动清理。 */
-const VER = 'czb-v1';
+   改动 App 后只需把 VER 数字加一，旧缓存会自动清理。
+
+   ⚠️ 手写识别模型（PP-OCRv5，约 16MB）和 onnxruntime 运行时单独放在 MODEL_CACHE 里，
+      不随 VER 变化删除 —— 否则每次 App 更新都要重新下载 16MB。
+      只有模型 URL 换版本（如 @0.1.4 → @0.2.0）时，才把 MODEL_VER 加一让它重下。 */
+const VER = 'czb-v6';
+const MODEL_CACHE = 'czb-model-v1';   // 跨 App 版本保留
+const KEEP_CACHES = [VER, MODEL_CACHE];
 
 const SHELL = [
   './',
@@ -39,7 +45,9 @@ self.addEventListener('install', function (e) {
 self.addEventListener('activate', function (e) {
   e.waitUntil((async function () {
     const keys = await caches.keys();
-    await Promise.all(keys.map(function (k) { return k === VER ? null : caches.delete(k); }));
+    await Promise.all(keys.map(function (k) {
+      return KEEP_CACHES.indexOf(k) >= 0 ? null : caches.delete(k);
+    }));
     await self.clients.claim();
   })());
 });
@@ -60,6 +68,23 @@ self.addEventListener('fetch', function (e) {
       } catch (err) {
         const cache = await caches.open(VER);
         return (await cache.match(req)) || (await cache.match('./index.html')) || (await cache.match('./'));
+      }
+    })());
+    return;
+  }
+
+  /* 手写识别模型 + onnxruntime 运行时：单独缓存，缓存优先，跨 App 版本永久保留 */
+  if (/PP-OCRv5_rec_mobile|onnxruntime-web/.test(url.href)) {
+    e.respondWith((async function () {
+      const cache = await caches.open(MODEL_CACHE);
+      const hit = await cache.match(req, { ignoreSearch: true });
+      if (hit) return hit;
+      try {
+        const res = await fetch(req);
+        if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
+        return res;
+      } catch (err) {
+        return hit || Response.error();
       }
     })());
     return;

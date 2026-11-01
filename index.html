@@ -318,9 +318,18 @@ button{
 .round-dots button.cur{width:20px;background:var(--primary);opacity:1;}
 .round-actions{display:flex;align-items:center;gap:8px;margin-left:auto;}
 
-.stage{position:relative;flex:1;display:flex;flex-direction:column;touch-action:pan-y;}
+/* 复习：一张卡片，正面书写、反面答案，点「对照答案」绕 Y 轴翻页
+   —— 不再左右并排两张卡（两张卡会把田字格挤没） */
+.stage{position:relative;flex:1;display:flex;flex-direction:column;touch-action:pan-y;perspective:2000px;}
 #reviewStage{overflow-x:clip;}
-.panes{display:grid;grid-template-areas:"stack";position:relative;flex:1;}
+.panes{
+  display:grid;grid-template-areas:"stack";
+  position:relative;flex:1;min-height:0;
+  transform-style:preserve-3d;-webkit-transform-style:preserve-3d;
+  transition:transform .62s cubic-bezier(.3,.72,.22,1);
+  will-change:transform;
+}
+.stage.revealed .panes{transform:rotateY(180deg);}
 
 .pane{
   grid-area:stack;
@@ -330,10 +339,15 @@ button{
   box-shadow:var(--shadow-1);
   padding:20px;
   display:flex;flex-direction:column;
+  min-height:0;
   -webkit-backface-visibility:hidden;
   backface-visibility:hidden;
 }
 @media (min-width:600px){ .pane{padding:24px 26px;} }
+/* 背面翻到 180°：未翻开时不可点，翻开后正面不可点 */
+.pane-answer{transform:rotateY(180deg);pointer-events:none;}
+.stage.revealed .pane-answer{pointer-events:auto;}
+.stage.revealed .pane-write{pointer-events:none;}
 
 /* --- 书写面 --- */
 .pane-write{gap:14px;align-items:center;justify-content:space-between;}
@@ -494,28 +508,12 @@ button{
   border-radius:6px;padding:2px 6px;margin-left:6px;vertical-align:2px;
 }
 
-/* --- 答案面 --- */
+/* --- 答案面（卡片背面） --- */
 .pane-answer{gap:16px;position:relative;}
 
-.answer-lock{
-  position:absolute;inset:0;z-index:3;
-  border-radius:var(--r-lg);
-  background:var(--surface);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:12px;padding:28px;text-align:center;
-}
-.answer-lock .lock-ic{
-  width:56px;height:56px;border-radius:18px;
-  background:var(--primary-l);color:var(--primary);
-  display:grid;place-items:center;
-}
-.answer-lock .lock-ic .ic{width:26px;height:26px;}
-.answer-lock p{margin:0;font-size:14px;color:var(--muted);line-height:1.7;max-width:22em;}
-.answer-lock strong{display:block;font-size:16px;color:var(--ink);margin-bottom:2px;}
-.stage.revealed .answer-lock{display:none;}
-
-.answer-body{display:none;flex-direction:column;gap:16px;flex:1;}
-.stage.revealed .answer-body{display:flex;}
+/* 答案内容常驻显示：卡背朝后时看不见，翻开才看到；
+   常显还能让正反两面高度一致，翻页时不跳动 */
+.answer-body{display:flex;flex-direction:column;gap:16px;flex:1;min-height:0;}
 
 .answer-top{display:flex;align-items:center;gap:14px;padding-bottom:14px;border-bottom:1px solid var(--line);}
 .answer-char{
@@ -608,31 +606,7 @@ button{
 .eval-btn.ok.is-note .ic{width:15px;height:15px;color:var(--primary);opacity:.85;}
 .eval-btn.ok.is-note:disabled{opacity:1;}
 
-/* 竖屏翻转 */
-@media (max-width:939px){
-  .stage{perspective:2200px;}
-  .panes{
-    -webkit-transform-style:preserve-3d;transform-style:preserve-3d;
-    transition:transform .6s cubic-bezier(.22,.9,.24,1);
-    transform:rotateY(0deg);
-  }
-  .stage.revealed .panes{transform:rotateY(180deg);}
-  .pane-answer{
-    -webkit-transform:rotateY(180deg);transform:rotateY(180deg);
-  }
-}
-/* 横屏并排 */
-@media (min-width:940px){
-  .panes{
-    grid-template-columns:minmax(0,1.02fr) minmax(0,.98fr);
-    grid-template-areas:"w a";
-    gap:20px;
-    transform:none;
-  }
-  .pane-write{grid-area:w;}
-  .pane-answer{grid-area:a;}
-  .pane-answer{transform:none;}
-}
+/* 翻页逻辑已在基础样式里统一（正面书写 / 反面答案），不再按横竖屏切换布局 */
 
 .review-foot{
   display:flex;align-items:center;gap:10px;
@@ -1577,35 +1551,50 @@ textarea::-webkit-input-placeholder{opacity:var(--ph-op,.6);}
   .stage{min-height:0;}
   /* panes 必须跟着 stage 一起收缩：行高写死 minmax(0,1fr)，
      否则 grid 会被内容撑高，把下面「上一个/下一个」挤出屏幕 */
-  .panes{min-height:0;overflow:hidden;grid-template-rows:minmax(0,1fr);}
-  .pane{min-height:0;overflow:hidden;height:100%;}
-  /* 书写面：田字格以「高度」驱动，空间不够时自动缩小（正常全屏时仍是 --pad 原尺寸），
-     保证撤销/清空/提示三个按钮永远在卡内 */
-  .pane-write .tian-wrap{flex:1;min-height:0;}
-  .pane-write .tian{height:min(var(--pad), 100%);width:auto;max-width:100%;}
+  .panes{min-height:0;grid-template-rows:minmax(0,1fr);}
+  .pane{min-height:0;overflow:hidden;}
   .review-foot{margin-top:9px;flex:none;}
   .foot-tip{margin-top:5px;flex:none;}
 
-  /* --- 答案卡：内容压进一屏（田字格大小不变） --- */
-  .pane-answer{padding:15px 22px;gap:0;}
-  .answer-body{gap:9px;min-height:0;overflow:hidden;}
-  .answer-top{padding-bottom:8px;flex:none;}
-  /* 三行：田字格区 / 组词 / 例句。例句行 minmax(0,1fr) 可收缩，
-     空间不够时先裁例句尾部，底部「再练一次 / 写对了」永远不被挤掉 */
-  .answer-grid{
-    display:grid;grid-template-columns:1fr;
-    grid-template-rows:auto auto minmax(0,1fr);
-    gap:7px;min-height:0;flex:1;overflow:hidden;
+  /* --- 书写面（卡片正面）：田字格在左放大，题目/提示/按钮在右，整张卡吃满 --- */
+  #view-review{--pad-review:min(clamp(240px, 46vh, 440px), calc(var(--app-h, 100vh) * .46));}
+  .pane-write{
+    display:grid;
+    grid-template-columns:min(var(--pad-review), 54%) minmax(0,1fr);
+    grid-template-rows:auto auto 1fr auto;
+    grid-template-areas:"tian prompt" "tian hint" "tian dict" "tian tools";
+    gap:6px clamp(16px, 2vw, 30px);
+    align-items:center;
   }
-  .stroke-col{gap:6px;flex:none;}
+  .pane-write .tian-wrap{grid-area:tian;width:100%;align-self:center;}
+  .pane-write .tian{width:min(var(--pad-review), 100%);}
+  .pane-write .prompt{grid-area:prompt;align-self:end;width:100%;text-align:left;}
+  .pane-write .hints{justify-content:flex-start;}
+  .pane-write .pad-hint{grid-area:hint;justify-content:flex-start;width:100%;}
+  .pane-write .dict-ref{grid-area:dict;justify-content:flex-start;margin-top:0;}
+  .pane-write .pad-tools{grid-area:tools;align-self:end;}
+
+  /* --- 答案面（卡片背面）：田字格/笔顺在左，组词、例句在右 --- */
+  .pane-answer{padding:18px 24px;gap:0;}
+  .answer-body{gap:10px;min-height:0;overflow:hidden;}
+  .answer-top{padding-bottom:8px;flex:none;}
+  .answer-grid{
+    display:grid;flex:1;min-height:0;overflow:hidden;
+    grid-template-columns:min(var(--pad-review), 44%) minmax(0,1fr);
+    grid-template-rows:auto minmax(0,1fr);
+    grid-template-areas:"stroke info" "stroke sent";
+    gap:8px clamp(14px, 1.8vw, 26px);
+  }
+  .stroke-col{grid-area:stroke;align-self:start;gap:8px;}
+  .stroke-col .tian-sm{width:min(calc(var(--pad-review) * .82), 100%);}
+  .info-col{grid-area:info;align-self:start;gap:6px;}
+  .sent-col{grid-area:sent;min-height:0;overflow:hidden;gap:6px;}
   .dict-ref-ans{margin-top:0;}
   .stroke-btns{gap:10px;}
-  .stroke-btns .mini{min-height:46px;padding:0 20px;}
-  .info-col{gap:5px;flex:none;}
-  .sent-col{gap:5px;min-height:0;overflow:hidden;}
+  .stroke-btns .mini{min-height:40px;padding:0 18px;}
   .word-list{gap:8px;}
   .word-pill{padding:5px 11px;gap:1px;border-radius:11px;}
-  .sentence{padding:10px 13px;line-height:1.7;overflow:hidden;
+  .sentence{padding:9px 12px;line-height:1.7;overflow:hidden;
     display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;}
   .self-eval{padding-top:0;margin-top:0;flex:none;}
   .eval-btn{min-height:52px;}
@@ -1839,16 +1828,8 @@ textarea::-webkit-input-placeholder{opacity:var(--ph-op,.6);}
                 </div>
               </div>
 
-              <!-- ---- 答案面 ---- -->
+              <!-- ---- 答案面（卡片背面：翻页后看到） ---- -->
               <div class="pane pane-answer">
-                <div class="answer-lock">
-                  <div class="lock-ic"><svg class="ic"><use href="#i-lock"/></svg></div>
-                  <div>
-                    <strong>答案先藏起来</strong>
-                    <p>凭记忆在左边写完，再点下方「对照答案」查看标准笔顺、组词和例句。</p>
-                  </div>
-                </div>
-
                 <div class="answer-body">
                   <div class="answer-top">
                     <span class="answer-char" id="ansChar">拔</span>
@@ -1906,7 +1887,7 @@ textarea::-webkit-input-placeholder{opacity:var(--ph-op,.6);}
             <button class="btn btn-primary hidden" id="btnNext">下一个</button>
           </div>
 
-          <div class="foot-tip">左右滑动卡片切换生字 · 田字格里手写不会误翻页</div>
+          <div class="foot-tip">左右滑动卡片切换生字 · 点「对照答案」翻页 · 田字格里手写不会误翻页</div>
         </div>
       </section>
 
